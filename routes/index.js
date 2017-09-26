@@ -9,4 +9,28 @@ router.get('/', function(req, res, next) {
   res.render('index', { title: 'Express' });
 });
 
+router.get('/topics',function (req,res,next) {
+	var promise = require('bluebird');
+	var options = {
+  // Initialization Options
+  	promiseLib: promise,
+  	ssl:true
+	};
+
+	var pgp = require('pg-promise')(options);
+	var db = pgp(connectionString);
+	 db.any('select topics.id,syllabus_name,subject_name,topics.name from syllabi join subjects on subjects.syllabus_id = syllabi.id join topics on topics.subject_id = subjects.id;')
+    .then(function (data) {
+      res.status(200)
+        .json({
+          status: 'success',
+          data: data,
+          message: 'Retrieved ALL puppies'
+        });
+    })
+    .catch(function (err) {
+      res.json({err});
+    });
+});
+
 module.exports = router;
