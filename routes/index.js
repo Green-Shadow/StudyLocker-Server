@@ -33,7 +33,75 @@ router.get('/topics/get', (req, res, next) => {
     return res.status(200).json(JSON.stringify(result.rows)) 
     }) 
    });
-})  
+})
 
+router.get('/syllabi/get', (req, res, next) => {
+  const results = [];
+  var pool = new pg.Pool({
+    user: auth[0],
+    password: auth[1],
+    host: params.hostname,
+    port: params.port,
+    database: params.pathname.split('/')[1],
+    ssl: true
+  })
+  pool.connect(function(err, client, done) {
+    if(err) {
+      done();
+      console.log(err);
+      return res.status(500).json({success: false, data: err});
+    }
+    client.query('select * from syllabi',function(err, result) {
+    return res.status(200).json(JSON.stringify(result.rows)) 
+    }) 
+   });
+})
+
+router.get('/subjects/get', (req, res, next) => {
+  const results = [];
+  id = req.query.id;
+  var pool = new pg.Pool({
+    user: auth[0],
+    password: auth[1],
+    host: params.hostname,
+    port: params.port,
+    database: params.pathname.split('/')[1],
+    ssl: true
+  })
+  pool.connect(function(err, client, done) {
+    if(err) {
+      done();
+      console.log(err);
+      return res.status(500).json({success: false, data: err});
+    }
+    client.query('select * from subjects where syllabus_id=' + id,function(err, result) {
+    return res.status(200).json(JSON.stringify(result.rows)) 
+    }) 
+   });
+})
+
+router.get('/questions/get', (req, res, next) => {
+  const results = [];
+  count = req.query.count;
+  topic_id = req.query.topic_id;
+  var pool = new pg.Pool({
+    user: auth[0],
+    password: auth[1],
+    host: params.hostname,
+    port: params.port,
+    database: params.pathname.split('/')[1],
+    ssl: true
+  })
+  pool.connect(function(err, client, done) {
+    if(err) {
+      done();
+      console.log(err);
+      return res.status(500).json({success: false, data: err});
+    }
+    client.query('select * from questions where topic_id=' + topic_id +'order by random limit' + count,function(err, result) {
+    return res.status(200).json(JSON.stringify(result.rows)) 
+    }) 
+   });
+})
 
 module.exports = router;
