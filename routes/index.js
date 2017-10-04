@@ -7,6 +7,15 @@ const connectionString = process.env.DATABASE_URL || 'postgres://umgxytivfnezso:
 const query = 'select topics.id,topics.name from syllabi join subjects on subjects.syllabus_id = syllabi.id join topics on topics.subject_id = subjects.id  where topics.subject_id = '
 const params = url.parse(connectionString);
 const auth = params.auth.split(':');
+var pool = new pg.Pool({
+    user: auth[0],
+    password: auth[1],
+    host: params.hostname,
+    port: params.port,
+    database: params.pathname.split('/')[1],
+    max:20,
+    ssl: true
+});
 
 router.use(function(req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
@@ -22,14 +31,6 @@ router.get('/', function(req, res, next) {
 router.get('/topics/get', (req, res, next) => {
   const results = [];
   subject_id = req.query.subject_id;
-  var pool = new pg.Pool({
-    user: auth[0],
-    password: auth[1],
-    host: params.hostname,
-    port: params.port,
-    database: params.pathname.split('/')[1],
-    ssl: true
-  })
   pool.connect(function(err, client, done) {
     if(err) {
       done();
@@ -37,21 +38,14 @@ router.get('/topics/get', (req, res, next) => {
       return res.status(500).json({success: false, data: err});
     }
     client.query(query + subject_id,function(err, result) {
-    return res.status(200).json(result.rows) 
+    done();	
+    return res.status(200).json(result.rows);
     }) 
    });
 })
 
 router.get('/syllabi/get', (req, res, next) => {
   const results = [];
-  var pool = new pg.Pool({
-    user: auth[0],
-    password: auth[1],
-    host: params.hostname,
-    port: params.port,
-    database: params.pathname.split('/')[1],
-    ssl: true
-  })
   pool.connect(function(err, client, done) {
     if(err) {
       done();
@@ -59,7 +53,8 @@ router.get('/syllabi/get', (req, res, next) => {
       return res.status(500).json({success: false, data: err});
     }
     client.query('select * from syllabi',function(err, result) {
-    return res.status(200).json(result.rows) 
+    done(); 
+    return res.status(200).json(result.rows);
     }) 
    });
 })
@@ -67,14 +62,6 @@ router.get('/syllabi/get', (req, res, next) => {
 router.get('/subjects/get', (req, res, next) => {
   const results = [];
   syllabus_name = req.query.syllabus_name;
-  var pool = new pg.Pool({
-    user: auth[0],
-    password: auth[1],
-    host: params.hostname,
-    port: params.port,
-    database: params.pathname.split('/')[1],
-    ssl: true
-  })
   pool.connect(function(err, client, done) {
     if(err) {
       done();
@@ -87,7 +74,8 @@ router.get('/subjects/get', (req, res, next) => {
       console.log(err);
       return res.status(500).json({success: false, data: err});
     }
-    return res.status(200).json(result.rows) 
+    done();
+    return res.status(200).json(result.rows); 
     }) 
    });
 })
@@ -96,14 +84,6 @@ router.get('/questions/get', (req, res, next) => {
   const results = [];
   count = req.query.count;
   topic_id = req.query.topic_id;
-  var pool = new pg.Pool({
-    user: auth[0],
-    password: auth[1],
-    host: params.hostname,
-    port: params.port,
-    database: params.pathname.split('/')[1],
-    ssl: true
-  })
   pool.connect(function(err, client, done) {
     if(err) {
       done();
@@ -111,34 +91,65 @@ router.get('/questions/get', (req, res, next) => {
       return res.status(500).json({success: false, data: err});
     }
     client.query('select * from questions where topic_id=' + topic_id +'order by random limit' + count,function(err, result) {
-    return res.status(200).json(JSON.stringify(result.rows)) 
+    done();
+    return res.status(200).json(result.rows);
     }) 
    });
 })
 
 router.get('/questions/get/all', (req, res, next) => {
   const results = [];
-  var pool = new pg.Pool({
-    user: auth[0],
-    password: auth[1],
-    host: params.hostname,
-    port: params.port,
-    database: params.pathname.split('/')[1],
-    ssl: true
-  })
   pool.connect(function(err, client, done) {
     if(err) {
       done();
       console.log(err);
       return res.status(500).json({success: false, data: err});
     }
-    client.query('select * from questions',function(err, result) {
+    client.query('select questions.id,questions.q_text,questions.img_url,options.text,options.is_correct from questions join options on questions.id=options.q_id',function(err, result) {
     	if(err){
     		return res.status(500).json({success: false, data: err});
     	}
-    		return res.status(200).json(JSON.stringify(result.rows)) 
+    		done();
+    		return res.status(200).json(result.rows); 
     }) 
    });
+})
+
+router.post('/questions/add', (req, res, next) => {
+  question = req.body;
+  console.log(question);
+  for(option of question.options){
+  	if(option.text == question.correct_option){
+  		var answer = option.text;
+  	}
+  }
+  var insert_id = null;
+  pool.connect(function(err, client, done) {
+    if(err) {
+      done();
+      console.log(err);
+      return res.status(500).json({success: false, data: err});
+    }
+   client.query('insert into questions(topic_id,q_text,img_url,options_count) values ($1,$2,$3,$4) RETURNING id',[question.topic,question.text,question.image,question.options.length],function(err, result) {
+    	if(err){
+    		return res.status(500).json({success: false, data: err});
+    	}
+    	insert_id = result.rows[0].id;
+    	for(option of question.options){
+    	console.log(option);	
+   		client.query('insert into options(q_id,"isImage",img_url,text,is_correct) values ($1,$2,$3,$4,$5)',[insert_id,false,"",option.text,option.text == answer?true:false],function(err, result) {
+    	if(err){
+    		done();
+    		return res.status(500).json({success: false, data: err});
+    	}
+    		done();
+    		return res.status(200).json(result.json); 
+    })
+}	 
+    })
+
+   });
+
 })
 
 module.exports = router;
