@@ -105,13 +105,13 @@ router.get('/questions/get/all', (req, res, next) => {
       console.log(err);
       return res.status(500).json({success: false, data: err});
     }
-    client.query('select questions.id,questions.q_text,questions.img_url,options.text,options.is_correct from questions join options on questions.id=options.q_id',function(err, result) {
+    client.query('select questions.id,questions.q_text,questions.img_url,options."isImage",options.text,options.is_correct from questions join options on questions.id = options.q_id',function(err, result) {
     	if(err){
     		return res.status(500).json({success: false, data: err});
     	}
-    		done();
-    		return res.status(200).json(result.rows); 
-    }) 
+    	//for(result)
+    	return res.status(200).json(result.rows);
+    })     
    });
 })
 
